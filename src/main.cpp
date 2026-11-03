@@ -1,4 +1,5 @@
 #include <iostream>
+#include <chrono>
 
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
@@ -35,6 +36,11 @@ int main() {
     sf::Shader shader(std::filesystem::path{"main.vert"}, std::filesystem::path{"main.frag"});
     // TODO: eventually add another Shader here which uses the blur fragment shader,
     // also create a sf::RenderTexture...
+    sf::Shader postProcessShader(std::filesystem::path{"main.vert"}, std::filesystem::path{"blur.frag"});
+
+    sf::RenderTexture preBlurRenderTexture(window.getSize());
+
+    auto startTime = std::chrono::steady_clock::now();
     while (window.isOpen()) {
         while (auto e = window.pollEvent()) {
             if (e->is<sf::Event::Closed>()) {
@@ -43,9 +49,37 @@ int main() {
         }
         // TODO: set shader uniforms and eventually draw into
         // a RenderTexture first before postprocessing into the window target.
+        shader.setUniform("windowSize", sf::Glsl::Vec2(window.getSize()));
+
+        
+        sf::Vector2i mouse = sf::Mouse::getPosition(window);
+
+        shader.setUniform("mousePos", sf::Glsl::Vec2(
+            static_cast<float>(mouse.x),
+            static_cast<float>(window.getSize().y) - static_cast<float>(mouse.y)
+        ));
+
+        auto currentTime = std::chrono::steady_clock::now();
+        float elapsedTime = std::chrono::duration<float>(currentTime - startTime).count();
+
+        shader.setUniform("time", elapsedTime);
+
+        postProcessShader.setUniform("texture", preBlurRenderTexture.getTexture());
+        postProcessShader.setUniform("textureSize", sf::Glsl::Vec2(
+            static_cast<float>(preBlurRenderTexture.getSize().x),
+            static_cast<float>(preBlurRenderTexture.getSize().y)
+        ));
+        
+        // First pass: draw the original scene into a texture.
+        preBlurRenderTexture.clear(sf::Color::Black);
+        preBlurRenderTexture.draw(fullscreenTriangle, &shader);
+        preBlurRenderTexture.display();
+
+        // Second pass: apply blur and draw to the window.
         window.clear(sf::Color::Black);
-        window.draw(fullscreenTriangle, &shader);
+        window.draw(fullscreenTriangle, &postProcessShader);
         window.display();
+
     }
     return 0;
 }
