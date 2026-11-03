@@ -7,7 +7,7 @@ uniform float time;
 void main(void) {
     vec2 pos = gl_FragCoord.xy / windowSize;
 
-    float red = mod(pos.x + time * 0.2, 1.0);
+    float red = (sin(pos.x * 3.14 + time) + 1.0) / 2.0;
     vec4 color = vec4(red, pos.y, 0.0, 1.0);
 
     float dx = gl_FragCoord.x - mousePos.x;
